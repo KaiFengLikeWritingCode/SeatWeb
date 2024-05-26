@@ -26,5 +26,15 @@ export default {
             },
             withCredentials: true,
         });
-    }
+    },
+    uploadFile(formData) {
+        return axios.post(`${API_URL}/upload`, formData, {
+            headers: {
+                'Content-Type': 'multipart/json'
+            }
+        });
+    },
+    clearSeats() {
+        return axios.delete(`${API_URL}/clear`);
+    },
 };

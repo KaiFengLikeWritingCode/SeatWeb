@@ -8,6 +8,11 @@
       <input type="number" id="columns" v-model="columns" required />
       <button type="submit">Initialize Seats</button>
     </form>
+    <div>
+      <h2>Upload Seating Chart Excel</h2>
+      <input type="file" @change="handleFileUpload" />
+      <button @click="uploadFile">Upload</button>
+    </div>
     <div v-if="seats.length > 0" class="seating-chart">
       <table>
         <tbody>
@@ -20,20 +25,26 @@
                 :style="{ backgroundColor: seat.occupied ? 'red' : 'white' }"
                 class="seat"
             >
-              <form @submit.prevent="addPoints(seat.id)">
-                <button type="submit">
-                  Row: {{ seat.seatRow + 1 }} Col: {{ seat.seatColumn + 1 }}<br />
-                  Points: {{ seat.points }}
-                </button>
-              </form>
+              <img
+                  v-if="seat.occupied"
+                  :src="seat.occupied ? '/images/occupied_seat.png' : '/images/seat.png'"
+
+
+                  @click="seat.occupied && addPoints(seat.id)"
+                  :alt="'Seat ' + (seat.seatRow + 1) + '-' + (seat.seatColumn + 1)"
+                  class="seat-image"
+              />
+              <div class="seat-info">
+                {{ seat.name + " " + seat.points}}
+              </div>
             </div>
           </td>
         </tr>
         </tbody>
       </table>
     </div>
-    <h2 v-if="seats.length > 0">Ranking</h2>
-    <div v-if="seats.length > 0" class="ranking">
+    <h2 v-if="occupiedSeats.length > 0">Ranking</h2>
+    <div v-if="occupiedSeats.length > 0" class="ranking">
       <table>
         <thead>
         <tr>
@@ -43,9 +54,9 @@
         </tr>
         </thead>
         <tbody>
-        <tr v-for="(seat, index) in rankedSeats" :key="seat.id">
+        <tr v-for="(seat, index) in rankedOccupiedSeats" :key="seat.id" :class="{ 'top-rank': index < topRankCount }">
           <td>{{ index + 1 }}</td>
-          <td>Row: {{ seat.seatRow + 1 }} Col: {{ seat.seatColumn + 1 }}</td>
+          <td>Row: {{ seat.seatRow + 1 }} Col: {{ seat.seatColumn + 1 }} Name: {{ seat.name }}</td>
           <td>{{ seat.points }}</td>
         </tr>
         </tbody>
@@ -65,12 +76,19 @@ export default {
       columns: 0,
       maxRow: 0,
       maxColumn: 0,
+      file: null,
     };
   },
   computed: {
-    rankedSeats() {
-      return this.seats.slice().sort((a, b) => b.points - a.points);
+    occupiedSeats() {
+      return this.seats.filter(seat => seat.occupied);
     },
+    rankedOccupiedSeats() {
+      return this.occupiedSeats.slice().sort((a, b) => b.points - a.points);
+    },
+    topRankCount() {
+      return Math.ceil(this.rankedOccupiedSeats.length * 0.3);
+    }
   },
   methods: {
     fetchSeats() {
@@ -82,6 +100,7 @@ export default {
     },
     initializeSeats() {
       SeatService.initializeSeats(this.rows, this.columns).then(() => {
+        this.seats = [];
         this.fetchSeats();
       });
     },
@@ -89,6 +108,27 @@ export default {
       SeatService.addPoints(id).then(() => {
         this.fetchSeats();
       });
+    },
+    handleFileUpload(event) {
+      this.file = event.target.files[0];
+    },
+    async uploadFile() {
+      if (!this.file) {
+        alert('Please select a file first');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', this.file);
+
+      try {
+        await SeatService.uploadFile(formData);
+        this.fetchSeats();
+        alert('File uploaded successfully');
+      } catch (error) {
+        console.error('Failed to upload file:', error);
+        alert('Failed to upload file');
+      }
     },
   },
   mounted() {
@@ -181,30 +221,24 @@ th {
   padding: 10px;
   border-radius: 4px;
   margin: 5px;
+  position: relative;
 }
 
-.seat button {
-  width: 100%;
-  padding: 10px;
-  border: none;
-  border-radius: 4px;
+.seat-image {
+  width: 50px;
+  height: 50px;
   cursor: pointer;
-  background-color: #e74c3c;
-  color: white;
-  font-size: 16px;
 }
 
-.seat button:hover {
-  background-color: #c0392b;
+.seat-info {
+  position: absolute;
+  top: 60px;
+  left: 0;
+  width: 100%;
+  text-align: center;
 }
 
-.ranking table {
-  width: auto;
-  margin: 0 auto;
-}
-
-.ranking th,
-.ranking td {
-  padding: 10px;
+.top-rank {
+  background-color: yellow;
 }
 </style>
